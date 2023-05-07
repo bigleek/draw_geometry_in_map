@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+     <title>Leaflet Draw Example</title>
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+     <style>
+          #map {
+               height: 500px;
+          }
+     </style>
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.3.0/turf.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/wellknown@0.5.0/wellknown.js"></script>
+</head>
+
+<body>
+
+     <div id="map"></div>
+     <textarea id="geojson" rows="10" cols="50"></textarea>
+     <textarea id="wkt" rows="10" cols="50"></textarea>
+
+
+
+     <script>
+          var map = L.map('map').setView([31.184218,121.441206], 13);
+          <!-- const wk = require('wellknown'); -->
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+               attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+               maxZoom: 18,
+          }).addTo(map);
+
+          var drawnItems = new L.FeatureGroup();
+          map.addLayer(drawnItems);
+
+          var drawControl = new L.Control.Draw({
+               draw: {
+                    polyline: false,
+                    circle: false,
+                    marker: true,
+                    polygon: {
+                         allowIntersection: false,
+                         drawError: {
+                              color: '#b00b00',
+                              timeout: 1000
+                         },
+                         shapeOptions: {
+                              color: '#3388ff'
+                         }
+                    },
+                    rect: {
+                         shapeOptions: {
+                              color: '#3388ff'
+                         }
+                    }
+               },
+               edit: {
+                    featureGroup: drawnItems
+               }
+          });
+          map.addControl(drawControl);
+
+          map.on(L.Draw.Event.CREATED, function (event) {
+               var layer = event.layer;
+               drawnItems.addLayer(layer);
+          });
+
+          map.on('draw:created', function (e) {
+               var layer = e.layer;
+               if (layer instanceof L.Marker) {
+                    layer.on('dblclick', L.DomEvent.stop).on('dblclick', function (e) {
+                         this.dragging.disable();
+                         this.drawn = true;
+                    });
+               }
+          });
+            //  wkt += turf.geometryToWkt(layer.toGeoJSON()) + '\n'; 
+          window.addEventListener("DOMContentLoaded", (event) => {
+               document.getElementById('clear').addEventListener('click', function () {
+                    drawnItems.clearLayers();
+               });
+               document.getElementById('export').addEventListener('click', function () {
+                    var geojson = '';
+                    var wkt = '';
+                    drawnItems.eachLayer(function (layer) {
+                         geojson += JSON.stringify(layer.toGeoJSON()) + '\n';
+                       
+                         wkt += wellknown.stringify((layer.toGeoJSON())) + '\n';
+                    });
+                    document.getElementById('geojson').value = geojson.trim();
+                    document.getElementById('wkt').value = wkt.trim();
+               });
+
+             
+
+           });
+
+
+             //  window.onload= map.on('load', function () {
+              //    if (!this.loaded) {
+                //      this.loaded = true;
+                //      document.getElementById('wkt').value = 'POINT (121.441206 31.184218)';
+               //   }
+             // });
+        
+     </script>
+
+     <button id="export">Export as WKT and GeoJSON</button>
+     <button id="clear">Clear Map</button>
+
+</body>
+
+</html>
