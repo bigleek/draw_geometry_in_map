@@ -17,6 +17,8 @@
 <script src="../leaflet-providers.js"></script>
 <script src="../wicket.js" type="text/javascript"></script>
 <script src="../wicket-leaflet.js" type="text/javascript"></script>
+<!-- 临时加上没有生效,目前在leaflef上没有实现googlemap上的取值和画地图的功能 -->
+<script src="../wellknown.js" type="text/javascript"></script>
 <script type="text/javascript">
 var app = (function () {
     return {
@@ -210,6 +212,104 @@ var app = (function () {
 
             // Initialize the map //////////////////////////////////////////////
             leaflet.map.setView([10, 20], 2);
+
+
+            leaflet = new leaflet.maps.Map(document.getElementById('canvas'), {
+                center: new google.maps.LatLng(30, 10),
+                defaults: {
+                    icon: 'red_dot.png',
+                    shadow: 'dot_shadow.png',
+                    editable: true,
+                    strokeColor: '#990000',
+                    fillColor: '#EEFFCC',
+                    fillOpacity: 0.6
+                },
+                disableDefaultUI: true,
+                mapTypeControl: true,
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_LEFT,
+                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+                },
+                panControl: false,
+                streetViewControl: false,
+                zoom: 2,
+                zoomControl: true,
+                zoomControlOptions: {
+                    position: google.maps.ControlPosition.LEFT_TOP,
+                    style: google.maps.ZoomControlStyle.SMALL
+                }
+            });
+
+            google.maps.event.addListener(gmap, 'tilesloaded', function () {
+                if (!this.loaded) {
+                    this.loaded = true;
+                    // NOTE: We start with a MULTIPOLYGON; these aren't easily deconstructed, so we won't set this object to be editable in this example
+                    document.getElementById('wkt').value = 'POLYGON((120.26292074937906 31.242455806060114,117.96677817125406 29.335797522059302,121.40549887437906 29.517606996622355,120.26292074937906 31.242455806060114))';
+                    app.mapIt();
+                }
+            });
+
+            gmap.drawingManager = new google.maps.drawing.DrawingManager({
+                drawingControlOptions: {
+                    position: google.maps.ControlPosition.TOP_CENTER,
+                    drawingModes: [
+                        google.maps.drawing.OverlayType.MARKER,
+                        google.maps.drawing.OverlayType.POLYLINE,
+                        google.maps.drawing.OverlayType.POLYGON,
+                        google.maps.drawing.OverlayType.RECTANGLE
+                    ]
+                },
+                markerOptions: gmap.defaults,
+                polygonOptions: gmap.defaults,
+                polylineOptions: gmap.defaults,
+                rectangleOptions: gmap.defaults
+            });
+            gmap.drawingManager.setMap(gmap);
+
+            google.maps.event.addListener(gmap.drawingManager, 'overlaycomplete', function (event) {
+                var wkt;
+
+                app.clearText();
+                app.clearMap();
+
+                // Set the drawing mode to "pan" (the hand) so users can immediately edit
+                this.setDrawingMode(null);
+
+                // Polygon drawn
+                if (event.type === google.maps.drawing.OverlayType.POLYGON || event.type === google.maps.drawing.OverlayType.POLYLINE) {
+                    // New vertex is inserted
+                    google.maps.event.addListener(event.overlay.getPath(), 'insert_at', function (n) {
+                        app.updateText();
+                    });
+
+                    // Existing vertex is removed (insertion is undone)
+                    google.maps.event.addListener(event.overlay.getPath(), 'remove_at', function (n) {
+                        app.updateText();
+                    });
+
+                    // Existing vertex is moved (set elsewhere)
+                    google.maps.event.addListener(event.overlay.getPath(), 'set_at', function (n) {
+                        app.updateText();
+                    });
+                } else if (event.type === google.maps.drawing.OverlayType.RECTANGLE) { // Rectangle drawn
+                    // Listen for the 'bounds_changed' event and update the geometry
+                    google.maps.event.addListener(event.overlay, 'bounds_changed', function () {
+                        app.updateText();
+                    });
+                }
+
+                app.features.push(event.overlay);
+                wkt = new Wkt.Wkt();
+                wkt.fromObject(event.overlay);
+                document.getElementById('wkt').value = wkt.write();
+      
+                document.getElementById('geojson').value=JSON.stringify(wkt.toJson());
+                });
+
+
+
+            
 
             return leaflet.map;
         }
